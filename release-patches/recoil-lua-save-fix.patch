@@ -1,0 +1,232 @@
+diff --git a/rts/System/LoadSave/CregLoadSaveHandler.cpp b/rts/System/LoadSave/CregLoadSaveHandler.cpp
+index a6db8105d..5c41b212c 100644
+--- a/rts/System/LoadSave/CregLoadSaveHandler.cpp
++++ b/rts/System/LoadSave/CregLoadSaveHandler.cpp
+@@ -190,7 +190,8 @@ void CLuaStateCollector::Serialize(creg::ISerializer* s) {
+ 	if (!valid)
+ 		return;
+ 
+-	creg::SerializeLuaState(s, &L);
++	
++    creg::SerializeLuaState(s, &L);
+ 	creg::SerializeLuaThread(s, &L_GC);
+ }
+ 
+diff --git a/rts/System/creg/SerializeLuaState.cpp b/rts/System/creg/SerializeLuaState.cpp
+index f8a767be3..91702bc4c 100644
+--- a/rts/System/creg/SerializeLuaState.cpp
++++ b/rts/System/creg/SerializeLuaState.cpp
+@@ -123,6 +123,17 @@ struct creg_Node {
+ 
+ ASSERT_SIZE(Node)
+ 
++// ARM64 diagnostic: verify Lua value and node layouts.
++static_assert(offsetof(creg_TValue, value) == offsetof(TValue, value),
++              "TValue value offset mismatch");
++static_assert(offsetof(creg_TValue, tt) == offsetof(TValue, tt),
++              "TValue type offset mismatch");
++static_assert(offsetof(creg_Node, i_val) == offsetof(Node, i_val),
++              "Node value offset mismatch");
++static_assert(offsetof(creg_Node, i_key) == offsetof(Node, i_key),
++              "Node key offset mismatch");
++
++
+ 
+ struct creg_Table {
+ 	CR_DECLARE_STRUCT(creg_Table)
+@@ -377,6 +388,21 @@ struct creg_lua_State {
+ 
+ ASSERT_SIZE(lua_State)
+ 
++// ARM64 save diagnostic: verify Lua thread header layout.
++static_assert(offsetof(creg_lua_State, next) == offsetof(lua_State, next),
++              "Lua next offset mismatch");
++static_assert(offsetof(creg_lua_State, tt) == offsetof(lua_State, tt),
++              "Lua tt offset mismatch");
++static_assert(offsetof(creg_lua_State, marked) == offsetof(lua_State, marked),
++              "Lua marked offset mismatch");
++static_assert(offsetof(creg_lua_State, status) == offsetof(lua_State, status),
++              "Lua status offset mismatch");
++static_assert(offsetof(creg_lua_State, top) == offsetof(lua_State, top),
++              "Lua top offset mismatch");
++static_assert(offsetof(creg_lua_State, l_G) == offsetof(lua_State, l_G),
++              "Lua global-state offset mismatch");
++
++
+ 
+ union creg_GCObject {
+ 	GCheader gch;
+@@ -439,7 +465,12 @@ public:
+ 			default: { assert(false); break; }
+ 		}
+ 
+-		s->SerializeObjectPtr(ptr, c);
++		if (c == nullptr) {
++            throw std::string("LUA SAVE DIAGNOSTIC: invalid GCObject type ")
++                + std::to_string(tt);
++        }
++
++        s->SerializeObjectPtr(ptr, c);
+ 	}
+ 	std::string GetName() const override {
+ 		return "creg_GCObject*";
+@@ -728,6 +759,32 @@ void SerializeLightUserData(creg::ISerializer* s, void **p)
+ 
+ void creg_TValue::Serialize(creg::ISerializer* s)
+ {
++
++    // Diagnostic only: check tagged GC references before CREG follows them.
++    if (s->IsWriting() &&
++        (tt == LUA_TSTRING || tt == LUA_TTABLE ||
++         tt == LUA_TFUNCTION || tt == LUA_TUSERDATA ||
++         tt == LUA_TTHREAD)) {
++
++        if (value.gc == nullptr) {
++            throw std::string("TVALUE DIAGNOSTIC: null GC pointer; expected type ")
++                + std::to_string(tt);
++        }
++
++        const int actualType = value.gc->gch.tt;
++
++        if (actualType != tt) {
++            throw std::string("TVALUE DIAGNOSTIC: expected type ")
++                + std::to_string(tt)
++                + ", actual GC header type "
++                + std::to_string(actualType)
++                + ", TValue address "
++                + std::to_string(reinterpret_cast<std::uintptr_t>(this))
++                + ", GC pointer "
++                + std::to_string(reinterpret_cast<std::uintptr_t>(value.gc));
++        }
++    }
++
+ 	switch(tt) {
+ 		case LUA_TNIL: { return; }
+ 		case LUA_TBOOLEAN: { s->SerializeInt(&value.b, sizeof(value.b)); return; }
+@@ -736,7 +793,7 @@ void creg_TValue::Serialize(creg::ISerializer* s)
+ 		case LUA_TSTRING: { SerializePtr(s, &value.gc); return; }
+ 		case LUA_TTABLE: { SerializePtr(s, &value.gc); return; }
+ 		case LUA_TFUNCTION: { SerializePtr(s, &value.gc); return; }
+-		case LUA_TUSERDATA: { SerializePtr(s, &value.gc); }
++		case LUA_TUSERDATA: { SerializePtr(s, &value.gc); return; }
+ 		case LUA_TTHREAD: { SerializePtr(s, &value.gc); return; }
+ 		case LUA_TDEADKEY: { return; }
+ 		default: { assert(false); return; }
+@@ -746,7 +803,35 @@ void creg_TValue::Serialize(creg::ISerializer* s)
+ 
+ void creg_Node::Serialize(creg::ISerializer* s)
+ {
+-	SerializeInstance(s, &i_key.tvk);
++	try {
++        if (s->IsWriting() && i_val.tt == LUA_TNIL) {
++        // Inactive Lua table nodes may retain stale collectable key tags.
++        // Serialize their embedded key as nil so CREG does not follow a
++        // stale GC pointer. Preserve the embedded object's original address
++        // for CREG identity tracking, and restore the live key tag afterward.
++        // This workaround still requires review of Lua hash-chain semantics.
++        const int originalKeyType = i_key.tvk.tt;
++        i_key.tvk.tt = LUA_TNIL;
++
++        try {
++            SerializeInstance(s, &i_key.tvk);
++        } catch (...) {
++            i_key.tvk.tt = originalKeyType;
++            throw;
++        }
++
++        i_key.tvk.tt = originalKeyType;
++    } else {
++        SerializeInstance(s, &i_key.tvk);
++    }
++    } catch (const std::string& err) {
++        throw std::string("NODE DIAGNOSTIC: value_type=")
++            + std::to_string(i_val.tt)
++            + ", key_type=" + std::to_string(i_key.nk.tt)
++            + ", key_next="
++            + std::to_string(reinterpret_cast<std::uintptr_t>(i_key.nk.next))
++            + " -> " + err;
++    }
+ 	SerializePtr(s, &i_key.nk.next);
+ }
+ 
+@@ -1095,7 +1180,21 @@ void SerializeLuaState(creg::ISerializer* s, lua_State** L)
+ 	creg_LG* clg;
+ 	if (s->IsWriting()) {
+ 		assert(*L != nullptr);
++
++		// Diagnostic: verify the LG cast is valid.
++		if ((*L)->l_G->mainthread != *L) {
++			throw std::string(
++				"LUA ROOT DIAGNOSTIC: SerializeLuaState received a non-main thread"
++			);
++		}
++
+ 		clg = (creg_LG*) *L;
++
++		if ((void*) &clg->g != (void*) (*L)->l_G) {
++			throw std::string(
++				"LUA ROOT DIAGNOSTIC: LG global-state address mismatch"
++			);
++		}
+ 		// a garbage pointer that needs fixing
+ 		clg->g.uvhead.next = nullptr;
+ 		clg->g.uvhead.v = nullptr;
+diff --git a/rts/System/creg/Serializer.cpp b/rts/System/creg/Serializer.cpp
+index 288ceacf6..910e77d49 100644
+--- a/rts/System/creg/Serializer.cpp
++++ b/rts/System/creg/Serializer.cpp
+@@ -148,7 +148,11 @@ COutputStreamSerializer::ObjectRef* COutputStreamSerializer::FindObjectRef(void*
+ 
+ void COutputStreamSerializer::SerializeObject(Class* c, void* ptr, ObjectRef* objr)
+ {
+-	const unsigned objstart = stream->tellp();
++	if (c == nullptr) {
++        throw std::string("CREG SAVE DIAGNOSTIC: null class in SerializeObject");
++    }
++
++    const unsigned objstart = stream->tellp();
+ 
+ 	if (c->base())
+ 		SerializeObject(c->base(), ptr, objr);
+@@ -169,7 +173,12 @@ void COutputStreamSerializer::SerializeObject(Class* c, void* ptr, ObjectRef* ob
+ 		void* memberAddr = ((char*)ptr) + m->offset;
+ 		unsigned mstart = stream->tellp();
+ 		LOG_SL(LOG_SECTION_CREG_SERIALIZER, L_DEBUG, "Serialized %s::%s type:%s", c->name, m->name, m->type->GetName().c_str());
+-		m->type->Serialize(this, memberAddr);
++		try {
++            m->type->Serialize(this, memberAddr);
++        } catch (const std::string& error) {
++            throw std::string("CREG MEMBER ")
++                + c->name + "::" + m->name + " -> " + error;
++        }
+ 		unsigned mend = stream->tellp();
+ 		om.size = mend - mstart;
+ 		omg.members.push_back(om);
+@@ -183,7 +192,12 @@ void COutputStreamSerializer::SerializeObject(Class* c, void* ptr, ObjectRef* ob
+ 		om.member = nullptr;
+ 		om.memberId = -1;
+ 		unsigned mstart = stream->tellp();
+-		c->CallSerializeProc(ptr, this);
++		try {
++            c->CallSerializeProc(ptr, this);
++        } catch (const std::string& error) {
++            throw std::string("CREG CUSTOM SERIALIZER ")
++                + c->name + " -> " + error;
++        }
+ 		unsigned mend = stream->tellp();
+ 		om.size = mend - mstart;
+ 		omg.members.push_back(om);
+@@ -305,7 +319,12 @@ void COutputStreamSerializer::SavePackage(std::ostream* s, void* rootObj, Class*
+ 		pendingObjects.clear();
+ 
+ 		for (ObjectRef* obj: po) {
+-			SerializeObject(obj->class_, obj->ptr, obj);
++			try {
++                SerializeObject(obj->class_, obj->ptr, obj);
++            } catch (const std::string& error) {
++                throw std::string("CREG OBJECT id=")
++                    + std::to_string(obj->id) + " -> " + error;
++            }
+ 			//LOG_SL(LOG_SECTION_CREG_SERIALIZER, L_DEBUG, "Serialized %s size:%i", obj->class_->name.c_str(), sz);
+ 		}
+ 	}

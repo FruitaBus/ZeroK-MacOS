@@ -1,0 +1,12 @@
+*.dmg
+*.app/
+*.zip
+*.tar.gz
+.DS_Store
+__pycache__/
+.env
+.env.*
+*.p12
+*.p8
+*.pem
+*.key

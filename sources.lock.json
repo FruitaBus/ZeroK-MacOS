@@ -1,0 +1,19 @@
+{
+  "recoil": {
+    "url": "https://github.com/smallketchup82/RecoilEngine.git",
+    "revision": "199b752a79f5c9211d88986c98bef1482ea2f1f9",
+    "engine_version": "2026.07.04",
+    "upstream_base": "de69361239d8c8b1012dba3f5aa3122954ea4da3",
+    "branch": "macos/2026.07.04",
+    "upstream_tag": "2026.07.04"
+  },
+  "chobby": {
+    "url": "https://github.com/smallketchup82/Chobby.git",
+    "revision": "7462a1bdf6e93815a556458fff63a85abdcee95e",
+    "branch": "macos-port"
+  },
+  "infrastructure": {
+    "url": "https://github.com/smallketchup82/Zero-K-Infrastructure.git",
+    "revision": "44984892b51185c07702907c6c905addbd875888"
+  }
+}

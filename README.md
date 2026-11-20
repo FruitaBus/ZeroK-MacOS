@@ -31,7 +31,6 @@ it does not automatically apply the additional release patches. Follow the build
 notes and reconcile the packaging steps before claiming reproducible full builds.
 
 No account data, replays, user saves, compiled app, or 2 GB DMG is committed here.
-Publish the DMG separately as a GitHub Release asset, not a Git history blob.
 
 For credits and license terms, see `notices/THIRD-PARTY.md`. Review Valve's separate
 Steam API terms and corresponding-source obligations before public distribution.

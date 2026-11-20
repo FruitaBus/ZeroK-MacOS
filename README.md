@@ -3,7 +3,7 @@
 This repository is the **source and patch reference kit** for a tested standalone
 Apple Silicon build of Zero-K, **not an official Zero-K project release**.
 
-[Direct Link to Pre-Release DMG](url)
+[Download DMG for MacOS](https://github.com/FruitaBus/ZeroK-MacOS/releases/download/v0.1.0/Zero-K-0.1.0-arm64-TEST.dmg)
 
 - Platform: Apple Silicon (ARM64), macOS 26 or newer
 - Game: Zero-K v1.14.10.3; Recoil 2026.07.04

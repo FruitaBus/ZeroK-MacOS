@@ -5,6 +5,9 @@ Apple Silicon build of Zero-K, **not an official Zero-K project release**.
 
 [Download DMG for MacOS](https://github.com/FruitaBus/ZeroK-MacOS/releases/download/v0.1.0/Zero-K-0.1.0-arm64-TEST.dmg)
 
+As expected, since this isn't a "licensed" game, you'll get the security popup upon first launch. Select cancel, go to Settings>Privacy & Security, scroll down and click Open Anyway for Zero-K.
+
+
 - Platform: Apple Silicon (ARM64), macOS 26 or newer
 - Game: Zero-K v1.14.10.3; Recoil 2026.07.04
 - Application: org.zerok.macos, version 0.1.0

@@ -2,6 +2,8 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+# Validate release manifests before making any build outputs or fetching sources.
+python3 "$ROOT/../scripts/verify-build-inputs.py"
 mkdir -p build/logs
 export UV_CACHE_DIR="$ROOT/build/uv-cache"
 if [ "${ZKMACOS_BUILD_RAW:-0}" != 1 ]; then

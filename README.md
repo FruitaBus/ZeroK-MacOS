@@ -28,6 +28,8 @@ As expected, since this isn't a "licensed" game, you'll get the security popup u
 - `sources.lock.json` and `assets.lock.json`: pinned upstream sources and dependencies
 - `notices/` and `LICENSE`: applicable bundled notices and GPL text
 - `SOURCE-BUILD-NOTES.md`: source acquisition and patch guidance
+- [`BUILD-FROM-SOURCE.md`](BUILD-FROM-SOURCE.md): contributor setup, tested checks, and known limitations
+- [`CONTRIBUTING.md`](CONTRIBUTING.md): contribution and development guidelines
 - `RELEASE-CHECKLIST.md`: required manual checks before public distribution
 
 The working binary was built separately and tested locally (AI play, saves, reloads,

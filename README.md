@@ -18,6 +18,10 @@ As expected, since this isn't a "licensed" game, you'll get the security popup u
 - Tested binary DMG SHA-256: `b7e5cc0282b996916a732d58108686975d75a22bbb8af9a3348fc962f49481fb`
 - Tested `spring` SHA-256: `0d6f38583ae50190c6abbe59b7637b11578516e0de909e0c0962fc25114c4b66`
 
+## Build from source
+
+Want to compile the macOS version yourself? Start with our [simple build guide](BUILD-FROM-SOURCE.md). The current build process is experimental and is not yet a verified reproduction of the published DMG.
+
 ## Contents
 
 - `port-source/`: tracked ZkMacOS build, launcher, patch, test and documentation files

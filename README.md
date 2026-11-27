@@ -3,6 +3,10 @@
 This repository is the **source and patch reference kit** for a tested standalone
 Apple Silicon build of Zero-K, **not an official Zero-K project release**.
 
+_Mini Patch 11-27-26: I expanded the Zero-K macOS GitHub repository with new build documentation, contributor guidelines, prerequisite checks, Chobby save-loading patch tools, and automated regression tests. These additions make it easier for developers to explore the source code, contribute improvements, and work toward building the game independently on Apple Silicon Macs._
+
+# Contributions and collaboration are welcome!
+
 [Download DMG for MacOS](https://github.com/FruitaBus/ZeroK-MacOS/releases/download/v0.1.0/Zero-K-0.1.0-arm64-TEST.dmg)
 
 As expected, since this isn't a "licensed" game, you'll get the security popup upon first launch. Select cancel, go to Settings>Privacy & Security, scroll down and click Open Anyway for Zero-K.

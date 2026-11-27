@@ -10,7 +10,11 @@ def prepare_source(destination, item):
         subprocess.run(['git', '-C', str(destination), 'checkout', item['revision']], check=True)
     actual = subprocess.check_output(['git', '-C', str(destination), 'rev-parse', 'HEAD'], text=True).strip()
     if actual != item['revision']:
-        print(f'{destination.name}: using local revision {actual}; release pin is {item["revision"]}')
+        raise RuntimeError(
+            f'{destination.name}: checkout at {actual}, but pinned revision is {item["revision"]}. '
+            'Stop and use a clean checkout or explicitly resolve local changes; '
+            'the build will not silently use a different source revision.'
+        )
     if (destination / '.gitmodules').exists():
         # Fork commits may change a submodule's remote as well as its gitlink.
         subprocess.run(['git', '-C', str(destination), 'submodule', 'sync', '--recursive'], check=True)
